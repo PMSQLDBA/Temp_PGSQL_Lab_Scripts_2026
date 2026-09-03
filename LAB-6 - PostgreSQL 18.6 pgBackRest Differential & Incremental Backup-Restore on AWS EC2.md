@@ -7,8 +7,8 @@
 **PostgreSQL:** 18.6\
 **pgBackRest:** 2.59.1\
 **Test Database:** `dvdrental`\
-**Source Server:** DB1 / `172.30.2.177`\
-**Restore Server:** DB2 / `172.30.2.128`\
+**Source Server:** pgsql01 / `172.30.2.177`\
+**Restore Server:** pgsql02 / `172.30.2.128`\
 **Stanza:** `lab5`
 
 > This README is the end-to-end LAB-6 execution plan. Run the lab
@@ -29,11 +29,11 @@ We will test:
 4.  Generate another controlled set of changes.
 5.  Take an **incremental backup**.
 6.  Inspect the backup dependency chain.
-7.  Transfer the updated repository to DB2.
+7.  Transfer the updated repository to pgsql02.
 8.  Restore the **differential backup** and validate the data state.
 9.  Restore the **incremental backup** and validate the later data
     state.
-10. Confirm DB2 is writable after the final restore.
+10. Confirm pgsql02 is writable after the final restore.
 
 pgBackRest defines the backup types as:
 
@@ -54,7 +54,7 @@ is separate from these backup types.
 ``` text
                     LAB-6 BACKUP CHAIN
 
-DB1 - PostgreSQL 18.6
+pgsql01 - PostgreSQL 18.6
 172.30.2.177
         |
         | dvdrental
@@ -82,7 +82,7 @@ DB1 - PostgreSQL 18.6
         |
         | Repository Transfer
         v
-DB2 - PostgreSQL 18.6
+pgsql02 - PostgreSQL 18.6
 172.30.2.128
         |
         +-- Restore Differential
@@ -126,20 +126,20 @@ Known source baseline:
   payment           14,596
   rental            16,044
 
-LAB-5 created `lab5_restore_validation` only on DB2 after restore. Do
-not use that DB2-only table as a LAB-6 source baseline.
+LAB-5 created `lab5_restore_validation` only on pgsql02 after restore. Do
+not use that pgsql02-only table as a LAB-6 source baseline.
 
 ------------------------------------------------------------------------
 
-# PHASE A - PRE-LAB VALIDATION ON DB1
+# PHASE A - PRE-LAB VALIDATION ON pgsql01
 
-## Step 1 - Connect to DB1
+## Step 1 - Connect to pgsql01
 
 From Windows PowerShell:
 
 ``` powershell
 ssh -i "C:\Users\DELL\Downloads\pgsqllabssep2026.pem" `
-ec2-user@3.15.171.222
+ec2-user@ec2-18-221-154-4.us-east-2.compute.amazonaws.com
 ```
 
 Validate:
@@ -152,7 +152,7 @@ hostname -I
 Expected:
 
 ``` text
-db1
+pgsql01
 172.30.2.177
 ```
 
@@ -641,7 +641,7 @@ backup sets required to restore the selected backup.
 
 # PHASE D - CAPTURE SOURCE VALIDATION
 
-## Step 16 - Capture DB1 Final Data State
+## Step 16 - Capture pgsql01 Final Data State
 
 ``` bash
 sudo -u postgres psql -d dvdrental -c "
@@ -692,15 +692,15 @@ rental     16044
 
 ------------------------------------------------------------------------
 
-# PHASE E - PREPARE DB2 FOR RESTORE
+# PHASE E - PREPARE pgsql02 FOR RESTORE
 
-## Step 17 - Connect to DB2
+## Step 17 - Connect to pgsql02
 
 From Windows PowerShell:
 
 ``` powershell
 ssh -i "C:\Users\DELL\Downloads\pgsqllabssep2026.pem" `
-ec2-user@18.218.173.106
+ec2-user@ec2-18-220-37-63.us-east-2.compute.amazonaws.com
 ```
 
 Validate:
@@ -713,13 +713,13 @@ hostname -I
 Expected:
 
 ``` text
-db2
+pgsql02
 172.30.2.128
 ```
 
 ------------------------------------------------------------------------
 
-## Step 18 - Stop PostgreSQL on DB2
+## Step 18 - Stop PostgreSQL on pgsql02
 
 ``` bash
 sudo systemctl stop postgresql
@@ -733,19 +733,19 @@ sudo systemctl is-active postgresql
 
 ``` bash
 sudo ss -lntp | grep 5432 || \
-echo "DB2 PostgreSQL is safely stopped"
+echo "pgsql02 PostgreSQL is safely stopped"
 ```
 
 Expected:
 
 ``` text
 inactive
-DB2 PostgreSQL is safely stopped
+pgsql02 PostgreSQL is safely stopped
 ```
 
 ------------------------------------------------------------------------
 
-## Step 19 - Preserve Current DB2 LAB-5 Cluster
+## Step 19 - Preserve Current pgsql02 LAB-5 Cluster
 
 Use a unique LAB-6 preservation directory.
 
@@ -772,11 +772,11 @@ The LAB-6 repository now contains the full, differential, incremental,
 and archived WAL required by the backup chain.
 
 Because the current lab uses local repositories on each EC2 server, copy
-the updated DB1 repository to DB2.
+the updated pgsql01 repository to pgsql02.
 
-## Step 20 - Package Repository on DB1
+## Step 20 - Package Repository on pgsql01
 
-On DB1:
+On pgsql01:
 
 ``` bash
 sudo tar -czf \
@@ -798,13 +798,13 @@ ls -lh /tmp/lab6_pgbackrest_repo.tar.gz
 
 ------------------------------------------------------------------------
 
-## Step 21 - Copy Repository DB1 -\> Windows
+## Step 21 - Copy Repository pgsql01 -\> Windows
 
 From Windows PowerShell:
 
 ``` powershell
 scp -i "C:\Users\DELL\Downloads\pgsqllabssep2026.pem" `
-ec2-user@3.15.171.222:/tmp/lab6_pgbackrest_repo.tar.gz `
+ec2-user@ec2-18-221-154-4.us-east-2.compute.amazonaws.com:/tmp/lab6_pgbackrest_repo.tar.gz `
 "C:\Users\DELL\Downloads\lab6_pgbackrest_repo.tar.gz"
 ```
 
@@ -816,19 +816,19 @@ Get-Item "C:\Users\DELL\Downloads\lab6_pgbackrest_repo.tar.gz"
 
 ------------------------------------------------------------------------
 
-## Step 22 - Copy Repository Windows -\> DB2
+## Step 22 - Copy Repository Windows -\> pgsql02
 
 ``` powershell
 scp -i "C:\Users\DELL\Downloads\pgsqllabssep2026.pem" `
 "C:\Users\DELL\Downloads\lab6_pgbackrest_repo.tar.gz" `
-ec2-user@18.218.173.106:/tmp/lab6_pgbackrest_repo.tar.gz
+ec2-user@ec2-18-220-37-63.us-east-2.compute.amazonaws.com:/tmp/lab6_pgbackrest_repo.tar.gz
 ```
 
 ------------------------------------------------------------------------
 
-## Step 23 - Replace LAB Repository Copy on DB2
+## Step 23 - Replace LAB Repository Copy on pgsql02
 
-On DB2:
+On pgsql02:
 
 ``` bash
 sudo rm -rf /var/lib/pgsql/pgbackrest_repo
@@ -910,7 +910,7 @@ sudo grep -n "primary_conninfo" \
 echo "No primary_conninfo configured"
 ```
 
-For this independent restore, DB2 must not be configured to follow DB1
+For this independent restore, pgsql02 must not be configured to follow pgsql01
 as a streaming standby.
 
 If a stale `primary_conninfo` is present, preserve the file and remove
@@ -1026,7 +1026,7 @@ later incremental state.
 
 # PHASE H - RESTORE INCREMENTAL BACKUP
 
-## Step 29 - Stop DB2
+## Step 29 - Stop pgsql02
 
 ``` bash
 sudo systemctl stop postgresql
@@ -1250,7 +1250,7 @@ LAB-6 created an additional validation table.
 
 ------------------------------------------------------------------------
 
-## Step 38 - Final Write Test on DB2
+## Step 38 - Final Write Test on pgsql02
 
 ``` bash
 sudo -u postgres psql -d dvdrental -c "
@@ -1258,7 +1258,7 @@ INSERT INTO lab6_backup_validation
     (backup_stage, test_note)
 VALUES
     ('RESTORE-VALIDATION',
-     'LAB-6 Incremental Restore Final Write Test on DB2');
+     'LAB-6 Incremental Restore Final Write Test on pgsql02');
 "
 ```
 
@@ -1375,7 +1375,7 @@ scenario is the differential backup.
 At completion:
 
 ``` text
-DB1
+pgsql01
  |
  |-- Full Backup (LAB-5)
  |
@@ -1392,7 +1392,7 @@ DB1
                       pgBackRest Repo
                              |
                              v
-                            DB2
+                            pgsql02
                              |
                +-------------+-------------+
                |                           |
@@ -1416,7 +1416,7 @@ DB1
 
 LAB-6 can be signed off only when all of the following are verified:
 
--   [ ] PostgreSQL 18.6 active on DB1.
+-   [ ] PostgreSQL 18.6 active on pgsql01.
 -   [ ] pgBackRest 2.59.1 available.
 -   [ ] Existing LAB-5 full backup is valid.
 -   [ ] WAL archiving is healthy.
@@ -1427,15 +1427,15 @@ LAB-6 can be signed off only when all of the following are verified:
 -   [ ] Change Set B adds another 3 rows.
 -   [ ] Incremental backup completes successfully.
 -   [ ] Incremental backup is visible in `pgbackrest info`.
--   [ ] Repository transferred to DB2.
+-   [ ] Repository transferred to pgsql02.
 -   [ ] Differential restore completes successfully.
 -   [ ] Differential restore contains Change Set A only.
 -   [ ] Incremental rows are absent from differential restore.
 -   [ ] Incremental restore completes successfully.
 -   [ ] Incremental restore contains Change Sets A and B.
 -   [ ] DVD Rental baseline tables match the source.
--   [ ] DB2 exits recovery and is writable.
--   [ ] Final DB2 write test succeeds.
+-   [ ] pgsql02 exits recovery and is writable.
+-   [ ] Final pgsql02 write test succeeds.
 -   [ ] pgBackRest repository status remains `ok`.
 
 ------------------------------------------------------------------------
@@ -1498,11 +1498,11 @@ This prevents ambiguity about which backup state is being tested.
 
 ## Local Repository Design
 
-This lab currently uses a local pgBackRest repository on DB1 and
-transfers a copy to DB2 for restore testing.
+This lab currently uses a local pgBackRest repository on pgsql01 and
+transfers a copy to pgsql02 for restore testing.
 
 ``` text
-DB1 local repo
+pgsql01 local repo
      |
      | package + SCP
      v
@@ -1510,7 +1510,7 @@ Windows workstation
      |
      | SCP
      v
-DB2 local repo copy
+pgsql02 local repo copy
 ```
 
 The two repositories are separate copies; they are not a shared
@@ -1645,8 +1645,8 @@ Complete this only after all restore tests pass.
 LAB-6
 PostgreSQL 18.6 pgBackRest Differential & Incremental Backup/Restore
 
-Source       : DB1 / 172.30.2.177
-Restore      : DB2 / 172.30.2.128
+Source       : pgsql01 / 172.30.2.177
+Restore      : pgsql02 / 172.30.2.128
 Database     : dvdrental
 PostgreSQL   : 18.6
 pgBackRest   : 2.59.1
